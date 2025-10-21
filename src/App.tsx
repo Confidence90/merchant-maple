@@ -14,6 +14,7 @@ import Reviews from "./pages/vendor/Reviews";
 import Marketing from "./pages/vendor/Marketing";
 import Statistics from "./pages/vendor/Statistics";
 import Settings from "./pages/vendor/Settings";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/" element={<VendorLayout><Dashboard /></VendorLayout>} />
           <Route path="/products" element={<VendorLayout><Products /></VendorLayout>} />
           <Route path="/orders" element={<VendorLayout><Orders /></VendorLayout>} />
