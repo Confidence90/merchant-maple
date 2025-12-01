@@ -1,3 +1,4 @@
+// src/components/dashboard/StatCard.tsx
 import { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,7 +14,7 @@ interface StatCardProps {
 export function StatCard({ title, value, change, changeType = "neutral", icon: Icon, iconBg }: StatCardProps) {
   const changeColor = {
     positive: "text-success",
-    negative: "text-destructive",
+    negative: "text-destructive", 
     neutral: "text-muted-foreground",
   }[changeType];
 

@@ -13,9 +13,14 @@ import Profile from "./pages/vendor/Profile";
 import Reviews from "./pages/vendor/Reviews";
 import Marketing from "./pages/vendor/Marketing";
 import Statistics from "./pages/vendor/Statistics";
+import UsersManagement from "./pages/admin/UsersManagement";
 import Settings from "./pages/vendor/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import AddProduct from "./pages/vendor/AddProduct";
+import AdminRoute from "./components/AdminRoute";
+import Index from "./pages/Index";
+import VendorSetup from "./pages/VendorSetup";
 
 const queryClient = new QueryClient();
 
@@ -26,8 +31,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<VendorLayout><Dashboard /></VendorLayout>} />
+          <Route path="/dashboard" element={<VendorLayout><Dashboard /></VendorLayout>} />
           <Route path="/products" element={<VendorLayout><Products /></VendorLayout>} />
           <Route path="/orders" element={<VendorLayout><Orders /></VendorLayout>} />
           <Route path="/messages" element={<VendorLayout><Messages /></VendorLayout>} />
@@ -35,9 +41,20 @@ const App = () => (
           <Route path="/profile" element={<VendorLayout><Profile /></VendorLayout>} />
           <Route path="/reviews" element={<VendorLayout><Reviews /></VendorLayout>} />
           <Route path="/marketing" element={<VendorLayout><Marketing /></VendorLayout>} />
+          <Route path="/products/add" element={<VendorLayout><AddProduct /></VendorLayout>} />
           <Route path="/statistics" element={<VendorLayout><Statistics /></VendorLayout>} />
           <Route path="/settings" element={<VendorLayout><Settings /></VendorLayout>} />
+          <Route path="/admin/users" element={<VendorLayout><UsersManagement /></VendorLayout>} />
           <Route path="*" element={<NotFound />} />
+          <Route path="/vendor-setup" element={<VendorSetup />} />
+          <Route 
+          path="/admin/users" 
+          element={
+            <AdminRoute>
+              <UsersManagement />
+            </AdminRoute>
+          } 
+        />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

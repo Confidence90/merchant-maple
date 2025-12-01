@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
+  { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard }, // Changé de "/" vers "/dashboard"
   { title: "Produits", url: "/products", icon: Package },
   { title: "Commandes", url: "/orders", icon: ShoppingCart },
   { title: "Messages", url: "/messages", icon: MessageSquare },
@@ -45,15 +45,18 @@ export function VendorSidebar() {
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
-        <div className="flex items-center gap-2 px-4 py-6">
-          <Store className="h-8 w-8 text-sidebar-primary" />
-          {!isCollapsed && (
-            <div>
-              <h2 className="font-bold text-lg text-sidebar-foreground">Ma Boutique</h2>
-              <p className="text-xs text-sidebar-foreground/60">Espace vendeur</p>
-            </div>
-          )}
-        </div>
+        {/* Logo/Boutique cliquable */}
+        <NavLink to="/dashboard" className="block">
+          <div className="flex items-center gap-2 px-4 py-6 hover:bg-sidebar-accent/50 rounded-lg transition-colors cursor-pointer">
+            <Store className="h-8 w-8 text-sidebar-primary" />
+            {!isCollapsed && (
+              <div>
+                <h2 className="font-bold text-lg text-sidebar-foreground">Ma Boutique</h2>
+                <p className="text-xs text-sidebar-foreground/60">Espace vendeur</p>
+              </div>
+            )}
+          </div>
+        </NavLink>
 
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -64,7 +67,7 @@ export function VendorSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      end={item.url === "/"}
+                      end={item.url === "/dashboard"} // Modifié ici aussi
                       className={({ isActive }) =>
                         `flex items-center gap-3 ${
                           isActive
