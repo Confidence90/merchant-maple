@@ -431,96 +431,133 @@ export default function Login() {
     return errors;
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    const response = await axios.post(
+      "http://localhost:8000/api/users/check-email/",
+      { email: email.toLowerCase() }
+    );
+    return response.data.exists;
+  } catch (error) {
+    return false;
+  }
+};
+
+ const handleSignup = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!termsAccepted) {
+    uiToast({
+      title: "Erreur",
+      description: "Veuillez accepter les conditions générales",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const formErrors = validateSignupForm();
+  if (Object.keys(formErrors).length > 0) {
+    setFieldErrors(formErrors);
+    uiToast({
+      title: "Erreur",
+      description: "Veuillez corriger les erreurs dans le formulaire",
+      variant: "destructive",
+    });
+    return;
+  }
+  const emailExists = await checkEmailExists(signupData.email);
+  if (emailExists) {
+    uiToast({
+      title: "Email déjà utilisé",
+      description: "Cet email est déjà associé à un compte. Essayez de vous connecter.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+
+  setLoading(true);
+
+  try {
+    const payload = {
+      first_name: signupData.first_name.trim(),
+      last_name: signupData.last_name.trim(),
+      email: signupData.email.trim().toLowerCase(), // 🔥 Normaliser l'email
+      password: signupData.password,
+      password2: signupData.password2,
+      country_code: signupData.country_code,
+      phone: signupData.phone.trim(),
+      location: signupData.location?.trim() || "",
+      is_seller: signupData.is_seller, // 🔥 CORRECTION : is_seller, pas is_seller_pending
+    };
+
+    console.log("Données envoyées au serveur:", payload); // 🔥 Log de débogage
+
+    const response = await axios.post(
+      "http://localhost:8000/api/users/register/",
+      payload,
+      {
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        withCredentials: false,
+      }
+    );
+
+    console.log("Réponse du serveur:", response.data); // 🔥 Log de débogage
+
+    localStorage.setItem("registrationEmail", signupData.email);
     
-    if (!termsAccepted) {
-      uiToast({
-        title: "Erreur",
-        description: "Veuillez accepter les conditions générales",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const formErrors = validateSignupForm();
-    if (Object.keys(formErrors).length > 0) {
-      setFieldErrors(formErrors);
-      uiToast({
-        title: "Erreur",
-        description: "Veuillez corriger les erreurs dans le formulaire",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const payload = {
+    if (signupData.is_seller) {
+      localStorage.setItem("is_seller_registration", "true");
+      localStorage.setItem("pending_seller_data", JSON.stringify({
         first_name: signupData.first_name.trim(),
         last_name: signupData.last_name.trim(),
-        email: signupData.email.trim(),
-        password: signupData.password,
-        password2: signupData.password2,
-        country_code: signupData.country_code,
+        email: signupData.email.trim().toLowerCase(),
         phone: signupData.phone.trim(),
-        location: signupData.location?.trim() || "",
-        is_seller_pending: signupData.is_seller,
-      };
+        location: signupData.location.trim(),
+      }));
 
-      const response = await axios.post(
-        "http://localhost:8000/api/users/register/",
-        payload,
-        {
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          withCredentials: false,
-        }
-      );
-
-      localStorage.setItem("registrationEmail", signupData.email);
-      
-      if (signupData.is_seller) {
-        localStorage.setItem("is_seller_registration", "true");
-        localStorage.setItem("pending_seller_data", JSON.stringify({
-          first_name: signupData.first_name.trim(),
-          last_name: signupData.last_name.trim(),
-          email: signupData.email.trim().toLowerCase(),
-          phone: signupData.phone.trim(),
-          location: signupData.location.trim(),
-        }));
-
-        navigate(`/otp/verify?email=${encodeURIComponent(signupData.email)}&type=seller`);
-        uiToast({
-          title: "Succès",
-          description: "Code OTP envoyé! Validez votre email pour configurer votre boutique",
-        });
-      } else {
-        navigate(`/otp/verify?email=${encodeURIComponent(signupData.email)}`);
-        uiToast({
-          title: "Succès",
-          description: response.data.message || "Compte créé avec succès",
-        });
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Une erreur est survenue lors de la création du compte";
-      
+      navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}&type=seller`);
+      uiToast({
+        title: "Succès",
+        description: "Code OTP envoyé! Validez votre email pour configurer votre boutique",
+      });
+    } else {
+      navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}`);
+      uiToast({
+        title: "Succès",
+        description: response.data.message || "Compte créé avec succès",
+      });
+    }
+  } catch (error: any) {
+    console.error("Erreur d'inscription:", error.response?.data); // 🔥 Log de débogage
+    
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      "Une erreur est survenue lors de la création du compte";
+    
+    // Gestion spécifique des erreurs
+    if (error.response?.data?.errors?.email) {
+      uiToast({
+        title: "Email déjà utilisé",
+        description: "Cet email est déjà associé à un compte. Essayez de vous connecter ou utilisez un autre email.",
+        variant: "destructive",
+      });
+    } else {
       uiToast({
         title: "Erreur",
         description: errorMessage,
         variant: "destructive",
       });
-      
-      if (error.response?.data?.errors) {
-        setFieldErrors(error.response.data.errors);
-      }
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    if (error.response?.data?.errors) {
+      setFieldErrors(error.response.data.errors);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

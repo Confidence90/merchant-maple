@@ -21,6 +21,8 @@ import AddProduct from "./pages/vendor/AddProduct";
 import AdminRoute from "./components/AdminRoute";
 import Index from "./pages/Index";
 import VendorSetup from "./pages/VendorSetup";
+import Notifications from "./pages/vendor/Notifications";
+import VerifyEmail from "./components/VerifyEmail";
 
 const queryClient = new QueryClient();
 
@@ -45,7 +47,9 @@ const App = () => (
           <Route path="/statistics" element={<VendorLayout><Statistics /></VendorLayout>} />
           <Route path="/settings" element={<VendorLayout><Settings /></VendorLayout>} />
           <Route path="/admin/users" element={<VendorLayout><UsersManagement /></VendorLayout>} />
+          <Route path="/notifications" element={<VendorLayout><Notifications /></VendorLayout>} />
           <Route path="*" element={<NotFound />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/vendor-setup" element={<VendorSetup />} />
           <Route 
           path="/admin/users" 

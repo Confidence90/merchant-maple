@@ -92,7 +92,36 @@ export interface VendorStats {
     };
   };
 }
-
+export interface VendorOrderFromEndpoint {
+  order_id: number;
+  order_number: string;
+  buyer: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  items: Array<{
+    id: number;
+    listing_id: number;
+    listing_title: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+  }>;
+  total_price: number;
+  status: string;
+  created_at: string;
+  is_packaged: boolean;
+  shipping_info: {
+    country: string;
+    method: string;
+  };
+}
+export interface VendorOrdersResponse {
+  count: number;
+  orders: VendorOrderFromEndpoint[];
+}
 export interface VendorOrder {
   id: number;
   order_number: string;
@@ -180,7 +209,7 @@ export const vendorApi = {
 
   // Récupérer les commandes
   async getOrders(): Promise<OrdersResponse> {
-    const response = await api.get('/commandes/commandes/'); 
+    const response = await api.get('/commandes/seller-orders/'); 
     return response.data;
   },
 
@@ -222,7 +251,7 @@ export const vendorApi = {
     search?: string;
     date_from?: string;
     date_to?: string;
-  }): Promise<OrdersResponse> {
+  }): Promise<VendorOrdersResponse> {
     const queryParams = new URLSearchParams();
     
     if (params?.status) queryParams.append('status', params.status);
@@ -231,7 +260,7 @@ export const vendorApi = {
     if (params?.date_to) queryParams.append('date_to', params.date_to);
     
     const queryString = queryParams.toString();
-    const url = `/commandes/commandes/${queryString ? `?${queryString}` : ''}`;
+    const url = `/commandes/vendor/orders/${queryString ? `?${queryString}` : ''}`;
     
     const response = await api.get(url);
     return response.data;

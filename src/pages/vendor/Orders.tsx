@@ -63,10 +63,10 @@ export default function Orders() {
   // Filtrer les commandes selon la recherche et les filtres
   const filteredOrders = orders.filter(order =>
     (order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     order.buyer.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     order.buyer.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     order.buyer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     order.buyer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
      order.items.some(item => 
-       item.listing.title.toLowerCase().includes(searchQuery.toLowerCase())
+       item.listing_title.toLowerCase().includes(searchQuery.toLowerCase())
      )) &&
     (statusFilter === "all" ? true: order.status === statusFilter)
   );
@@ -290,7 +290,7 @@ export default function Orders() {
                   <TableRow>
                     <TableHead>Commande</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Client</TableHead>
+                    
                     <TableHead>Produit(s)</TableHead>
                     <TableHead>Montant</TableHead>
                     <TableHead>Statut</TableHead>
@@ -298,89 +298,81 @@ export default function Orders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        #{order.order_number || order.id}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(order.created_at).toLocaleDateString('fr-FR')}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {order.buyer.first_name} {order.buyer.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {order.buyer.email}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-[200px]">
-                          {order.items.map((item, index) => (
-                            <div key={item.id} className="text-sm">
-                              {item.quantity} × {item.listing.title}
-                              {index < order.items.length - 1 && ", "}
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {order.total_price.toLocaleString()} XOF
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge 
-                            variant="outline" 
-                            className={statusColors[order.status as keyof typeof statusColors] || "bg-muted text-muted-foreground border-border"}
-                          >
-                            {statusLabels[order.status as keyof typeof statusLabels] || order.status}
-                          </Badge>
-                          
-                          {/* Sélecteur de statut */}
-                          <Select
-                            value={order.status}
-                            onValueChange={(newStatus) => 
-                              handleStatusChange(order.id, newStatus)
-                            }
-                          >
-                            <SelectTrigger className="h-6 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(statusLabels).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleViewClick(order)}
-                            title="Voir les détails"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDownloadClick(order)}
-                            title="Télécharger la facture"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  
+{filteredOrders.map((order) => (
+  <TableRow key={order.order_id} className="hover:bg-muted/50">
+    <TableCell className="font-medium">
+      #{order.order_number}
+    </TableCell>
+    <TableCell>
+      {new Date(order.created_at).toLocaleDateString('fr-FR')}
+    </TableCell>
+    
+    <TableCell>
+      <div className="max-w-[200px]">
+        {order.items.map((item, index) => (
+          <div key={item.id} className="text-sm">
+            {item.quantity} × {item.listing_title}
+            {index < order.items.length - 1 && ", "}
+          </div>
+        ))}
+      </div>
+    </TableCell>
+    <TableCell className="font-semibold">
+      {order.total_price.toLocaleString()} XOF
+    </TableCell>
+    <TableCell>
+      <div className="flex flex-col gap-1">
+        <Badge 
+          variant="outline" 
+          className={statusColors[order.status as keyof typeof statusColors] || "bg-muted text-muted-foreground border-border"}
+        >
+          {statusLabels[order.status as keyof typeof statusLabels] || order.status}
+        </Badge>
+        
+        {/* Sélecteur de statut */}
+        <Select
+          value={order.status}
+          onValueChange={(newStatus) => 
+            handleStatusChange(order.order_id, newStatus)
+          }
+        >
+          <SelectTrigger className="h-6 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(statusLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </TableCell>
+    <TableCell className="text-right">
+      <div className="flex items-center justify-end gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => handleViewClick(order)}
+          title="Voir les détails"
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => handleDownloadClick(order)}
+          title="Télécharger la facture"
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+      </div>
+    </TableCell>
+  </TableRow>
+))}
                 </TableBody>
               </Table>
             </div>
@@ -405,7 +397,7 @@ export default function Orders() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-semibold mb-2">Client</h4>
-                  <p>{selectedOrder.buyer.first_name} {selectedOrder.buyer.last_name}</p>
+                  <p>{selectedOrder.buyer.name}</p>
                   <p className="text-sm text-muted-foreground">{selectedOrder.buyer.email}</p>
                 </div>
                 <div>
