@@ -72,6 +72,18 @@ export interface VendorProfileData {
   user_country_code?: string;
   user_first_name?: string;
   user_last_name?: string;
+
+  status?: 'pending' | 'approved' | 'rejected' | 'suspended';
+  verification_status?: 'pending' | 'verified' | 'rejected';
+  kyc_confidence_score?: number;
+  kyc_submitted_at?: string;
+  business_license?: string;
+  verification_documents?: {
+    id_front?: string;
+    id_back?: string;
+    proof_of_address?: string;
+    business_registration?: string;
+  };
 }
 
 export interface VendorStatus {
@@ -79,6 +91,7 @@ export interface VendorStatus {
   is_seller_pending: boolean;
   has_vendor_profile: boolean;
   vendor_profile_completed: boolean;
+  requires_kyc: boolean;
   role: string;
 }
 

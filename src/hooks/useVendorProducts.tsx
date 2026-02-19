@@ -1,6 +1,7 @@
 // src/hooks/useVendorProducts.ts
 import { useState, useEffect } from 'react';
 import { vendorApi, VendorProduct } from '@/services/vendorApi';
+import { listingsApi } from '@/services/listingsApi';
 
 export function useVendorProducts() {
   const [products, setProducts] = useState<VendorProduct[]>([]);
@@ -32,8 +33,12 @@ export function useVendorProducts() {
       throw new Error('Erreur lors de la suppression du produit');
     }
   };
+  const deeleteProduct = async (productId: number) => {
+    await listingsApi.deleteListing(productId);
+    setProducts(prev => prev.filter(p => p.id !== productId));
+  };
 
-  const updateProduct = async (id: number, data: Partial<VendorProduct>) => {
+  /*const updateProduct = async (id: number, data: Partial<VendorProduct>) => {
     try {
       const updatedProduct = await vendorApi.updateProduct(id, data);
       setProducts(prev => prev.map(product => 
@@ -44,8 +49,23 @@ export function useVendorProducts() {
       console.error('Error updating product:', err);
       throw new Error('Erreur lors de la mise à jour du produit');
     }
+  };*/
+  const updateProduct = async (productId: number, data: any) => {
+    const updated = await listingsApi.updateListing(productId, data);
+    setProducts(prev => prev.map(p => p.id === productId ? updated.listing : p));
+    return updated;
+  };
+   const toggleProductStatus = async (productId: number, status: 'active' | 'expired') => {
+    const updated = await listingsApi.toggleStatus(productId, status);
+    setProducts(prev => prev.map(p => p.id === productId ? updated.listing : p));
+    return updated;
   };
 
+  const bulkDeleteProducts = async (ids: number[]) => {
+    const result = await listingsApi.bulkDelete(ids);
+    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
+    return result;
+  };
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -56,6 +76,9 @@ export function useVendorProducts() {
     error,
     refetch: fetchProducts,
     deleteProduct,
+    deeleteProduct,
+    toggleProductStatus,
+    bulkDeleteProducts,
     updateProduct,
   };
 }

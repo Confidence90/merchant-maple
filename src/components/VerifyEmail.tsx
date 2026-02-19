@@ -146,7 +146,7 @@ const VerifyEmail: React.FC = () => {
       );
 
       toast.success(resendRes.data.message || "Un nouveau code OTP a été envoyé !");
-      setTimer(60);
+      setTimer(300);
       setCanResend(false);
     } catch (resendError: any) {
       console.error("Échec renvoi OTP:", resendError.response);
@@ -193,12 +193,12 @@ const VerifyEmail: React.FC = () => {
                   id="otp"
                   name="otp"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => setOtp(e.target.value)}
                   required
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                   placeholder="Entrez le code à 6 chiffres"
                   maxLength={6}
-                  pattern="\d{6}"
+                  /*pattern="\d{6}"*/
                   inputMode="numeric"
                 />
                 <div className="absolute right-3 top-3 text-gray-400">

@@ -1,6 +1,6 @@
 // src/services/vendorApi.ts
 import axios from 'axios';
-
+import { VendorProfile, VendorStatus, VendorKYCData } from "@/types/vendor";
 const API_BASE_URL = 'http://localhost:8000/api';
 
 const api = axios.create({
@@ -195,6 +195,91 @@ export interface OrderStats {
 }
 
 export const vendorApi = {
+
+    async getUserProfile() {
+    const { data } = await api.get("profile/");
+    return data;
+  },
+
+  async updateUserAvatar(file: File) {
+    const form = new FormData();
+    form.append("avatar", file);
+
+    const { data } = await api.patch("profile/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  /* =======================
+        VENDOR STATUS
+  ======================== */
+  async checkStatus(): Promise<VendorStatus> {
+    const { data } = await api.get("vendor/check-status/");
+    return data;
+  },
+
+  async activateVendor() {
+    const { data } = await api.post("vendor/activate/");
+    return data;
+  },
+
+  /* =======================
+        VENDOR PROFILE
+  ======================== */
+  async getVendorProfile(): Promise<VendorProfile | null> {
+    try {
+      const { data } = await api.get("vendor/profile/");
+      return data;
+    } catch (err: any) {
+      if (err.response?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  async createVendorProfile(payload: Partial<VendorProfile>): Promise<VendorProfile> {
+    const { data } = await api.post("vendor/profile/", payload);
+    return data;
+  },
+
+  async updateVendorProfile(payload: Partial<VendorProfile>): Promise<VendorProfile> {
+    const { data } = await api.patch("vendor/profile/", payload);
+    return data;
+  },
+
+  async saveVendorProfile(payload: Partial<VendorProfile>): Promise<VendorProfile> {
+    const profile = await this.getVendorProfile();
+    if (profile?.id) return this.updateVendorProfile(payload);
+    return this.createVendorProfile(payload);
+  },
+
+  /* =======================
+             KYC
+  ======================== */
+submitKYC: (data: {
+  id_type: string;
+  id_number: string;
+  id_front: File;
+  id_back?: File;
+  selfie_with_id: File;
+  proof_of_address?: File;
+  business_registration?: File;
+}) => {
+  const formData = new FormData();
+  formData.append("id_type", data.id_type);
+  formData.append("id_number", data.id_number);
+  formData.append("id_front_image", data.id_front);
+  if (data.id_back) formData.append("id_back_image", data.id_back);
+  formData.append("selfie_with_id", data.selfie_with_id);
+  if (data.proof_of_address) formData.append("proof_of_address", data.proof_of_address);
+    if (data.business_registration) formData.append("business_registration", data.business_registration);
+  return api.post("/users/vendor/kyc/submit/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+},
+
+
+
   // Récupérer les statistiques rapides
   async getQuickStats(): Promise<VendorStats> {
     const response = await api.get('/users/vendor/quick-stats/');
@@ -308,7 +393,7 @@ export const vendorApi = {
 async trackDashboardView(): Promise<any> {
     try {
       console.log('📊 Tracking dashboard view');
-      const response = await api.post('/users/vendor/track-dashboard-view/');
+      const response = await api.post('/users/track-dashboard-view/');
       console.log('✅ Dashboard view tracked successfully');
       return response.data;
     } catch (error) {

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { FaGithub, FaGoogle, FaSpinner, FaArrowRight, FaEye, FaEyeSlash, FaCheck, FaStore } from "react-icons/fa";
-import axios from "axios";
+import { usersApi } from "@/services/usersApi";
+
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export default function Login() {
     phone: "",
     location: "",
     is_seller: false,
+    shop_name: "",
   });
 
   const [showPassword, setShowPassword] = useState({
@@ -94,95 +96,63 @@ export default function Login() {
 
   // Gestion de la connexion GitHub
   const handleLoginWithGithub = () => {
-    const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    if (!githubClientId) {
-      uiToast({
-        title: "Erreur",
-        description: "Configuration GitHub manquante",
-        variant: "destructive",
-      });
-      return;
-    }
-    window.location.assign(
-      `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=user:email`
-    );
-  };
+  try {
+    window.location.assign(usersApi.getGithubRedirectUrl());
+  } catch (e) {
+    uiToast({
+      title: "Erreur",
+      description: "Configuration GitHub manquante",
+      variant: "destructive",
+    });
+  }
+};
 
   // Gestion de la connexion Google
   const handleLoginWithGoogle = useCallback(async (response) => {
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/api/users/google/login/", {
-        id_token: response.credential,
-      });
-      
-      if (res.status === 200) {
-        const user = {
-          id: res.data.id,
-          email: res.data.email,
-          names: res.data.full_name || `${res.data.first_name} ${res.data.last_name}`,
-        };
+  try {
+    await usersApi.loginWithGoogle(response.credential, rememberMeRef.current);
 
-        const storage = rememberMeRef.current ? localStorage : sessionStorage;
+    uiToast({
+      title: "Connexion réussie",
+      description: "Connexion avec Google réussie !",
+    });
 
-        storage.setItem("access_token", res.data.access || res.data.token);
-        storage.setItem("refresh_token", res.data.refresh || "");
-        storage.setItem("user", JSON.stringify(user));
+    navigate("/");
+  } catch {
+    uiToast({
+      title: "Erreur",
+      description: "Échec de la connexion avec Google",
+      variant: "destructive",
+    });
+  }
+}, [navigate]);
 
-        uiToast({
-          title: "Connexion réussie",
-          description: "Connexion avec Google réussie !",
-        });
-        window.dispatchEvent(new Event("authChange"));
-        navigate("/");
-      }
-    } catch (error) {
-      uiToast({
-        title: "Erreur",
-        description: "Échec de la connexion avec Google",
-        variant: "destructive",
-      });
-    }
-  }, [navigate]);
 
   // Envoi du code GitHub au serveur
-  const sendGithubCodeToServer = async () => {
-    const code = searchParams.get("code");
-    if (!code) return;
+ const sendGithubCodeToServer = async () => {
+  const code = searchParams.get("code");
+  if (!code) return;
 
-    try {
-      setIsLoading(true);
-      const res = await axios.post("http://localhost:8000/api/users/github-login/", { code });
-      if (res.status === 200) {
-        const storage = rememberMeRef.current ? localStorage : sessionStorage;
-        
-        storage.setItem("access_token", res.data.access || res.data.token);
-        storage.setItem("refresh_token", res.data.refresh || "");
-        storage.setItem(
-          "user",
-          JSON.stringify({
-            id: res.data.id,
-            email: res.data.email,
-            names: res.data.full_name,
-          })
-        );
-        
-        uiToast({
-          title: "Connexion réussie",
-          description: "Connexion avec GitHub réussie !",
-        });
-        window.dispatchEvent(new Event("authChange"));
-        navigate("/");
-      }
-    } catch (error) {
-      uiToast({
-        title: "Erreur",
-        description: "Échec de la connexion avec GitHub",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    setIsLoading(true);
+    await usersApi.loginWithGithubCode(code, rememberMeRef.current);
+
+    uiToast({
+      title: "Connexion réussie",
+      description: "Connexion avec GitHub réussie !",
+    });
+
+    navigate("/");
+  } catch {
+    uiToast({
+      title: "Erreur",
+      description: "Échec de la connexion avec GitHub",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   useEffect(() => {
     sendGithubCodeToServer();
@@ -206,99 +176,49 @@ export default function Login() {
 
   // Gestion de la connexion
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const now = Date.now();
-    if (now - lastRequestTime < 2000) {
-      setFieldErrors({ general: "Veuillez patienter avant de réessayer" });
-      return;
+  const now = Date.now();
+  if (now - lastRequestTime < 2000) {
+    setFieldErrors({ general: "Veuillez patienter avant de réessayer" });
+    return;
+  }
+  setLastRequestTime(now);
+
+  const { email, password } = loginData;
+  if (!email || !password) {
+    setFieldErrors({ general: "Veuillez remplir tous les champs obligatoires" });
+    return;
+  }
+
+  setLoading(true);
+  setFieldErrors({});
+
+  try {
+    await usersApi.login(loginData, rememberMe);
+
+    uiToast({
+      title: "Connexion réussie",
+      description: "Vous êtes maintenant connecté",
+    });
+
+    navigate("/");
+  } catch (error: any) {
+    const status = error?.response?.status;
+    if (status === 401 || status === 400) {
+      setFieldErrors({ general: "Email ou mot de passe incorrect" });
+    } else if (status === 403) {
+      setFieldErrors({ general: "Compte non activé. Vérifiez vos emails." });
+    } else if (status === 429) {
+      setFieldErrors({ general: "Trop de tentatives. Veuillez patienter." });
+    } else {
+      setFieldErrors({ general: "Erreur lors de la connexion." });
     }
-    setLastRequestTime(now);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    const { email, password } = loginData;
-
-    // Validation des champs
-    if (!email || !password) {
-      setFieldErrors({ general: "Veuillez remplir tous les champs obligatoires" });
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setFieldErrors((prev) => ({ ...prev, email: "Email invalide" }));
-      return;
-    }
-
-    if (password.length < 8) {
-      setFieldErrors({ password: "Le mot de passe doit contenir au moins 8 caractères" });
-      return;
-    }
-
-    setLoading(true);
-    setFieldErrors({});
-
-    try {
-      const res = await axios.post(
-        "http://localhost:8000/api/users/login/",
-        loginData,
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      const user = {
-        id: res.data.id,
-        email: res.data.email,
-        full_name: res.data.full_name,
-      };
-
-      const storage = rememberMe ? localStorage : sessionStorage;
-
-      storage.setItem("access_token", res.data.access);
-      storage.setItem("refresh_token", res.data.refresh);
-      storage.setItem("user", JSON.stringify(user));
-
-      uiToast({
-        title: "Connexion réussie",
-        description: "Vous êtes maintenant connecté",
-      });
-      window.dispatchEvent(new Event("authChange"));
-      navigate("/");
-    } catch (error: any) {
-      if (error.response) {
-        const { status, data } = error.response;
-        if (status === 400) {
-          if (data.errors) {
-            setFieldErrors(data.errors);
-          } else if (typeof data === "string" && data.includes("Email ou mot de passe incorrect")) {
-            setFieldErrors({ general: "Email ou mot de passe incorrect" });
-          } else if (data.password) {
-            setFieldErrors((prev) => ({ ...prev, password: data.password }));
-          } else if (data.message) {
-            setFieldErrors({ general: data.message });
-          } else {
-            setFieldErrors({ general: "Identifiants incorrects" });
-          }
-        } else if (status === 401) {
-          setFieldErrors({ general: "Email ou mot de passe incorrect" });
-        } else if (status === 403) {
-          setFieldErrors({ general: "Compte non activé. Vérifiez vos emails." });
-        } else if (status === 429) {
-          setFieldErrors({ general: "Trop de tentatives. Veuillez patienter." });
-        } else {
-          setFieldErrors({ general: "Une erreur est survenue lors de la connexion." });
-        }
-      } else if (error.request) {
-        setFieldErrors({ general: "Le serveur ne répond pas. Veuillez réessayer plus tard." });
-      } else {
-        setFieldErrors({ general: "Une erreur inattendue est survenue" });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Gestion de l'inscription
   const handleSellerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -433,19 +353,15 @@ export default function Login() {
 
 const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
-    const response = await axios.post(
-      "http://localhost:8000/api/users/check-email/",
-      { email: email.toLowerCase() }
-    );
-    return response.data.exists;
-  } catch (error) {
+    return await usersApi.checkEmailExists(email);
+  } catch {
     return false;
   }
 };
 
- const handleSignup = async (e: React.FormEvent) => {
+const handleSignup = async (e: React.FormEvent) => {
   e.preventDefault();
-  
+
   if (!termsAccepted) {
     uiToast({
       title: "Erreur",
@@ -465,6 +381,7 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
     });
     return;
   }
+
   const emailExists = await checkEmailExists(signupData.email);
   if (emailExists) {
     uiToast({
@@ -475,46 +392,39 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
     return;
   }
 
-
   setLoading(true);
 
   try {
     const payload = {
       first_name: signupData.first_name.trim(),
       last_name: signupData.last_name.trim(),
-      email: signupData.email.trim().toLowerCase(), // 🔥 Normaliser l'email
+      email: signupData.email.trim().toLowerCase(),
       password: signupData.password,
       password2: signupData.password2,
       country_code: signupData.country_code,
       phone: signupData.phone.trim(),
       location: signupData.location?.trim() || "",
-      is_seller: signupData.is_seller, // 🔥 CORRECTION : is_seller, pas is_seller_pending
+      shop_name: signupData.shop_name?.trim() || "",
+      is_seller: signupData.is_seller,
     };
 
-    console.log("Données envoyées au serveur:", payload); // 🔥 Log de débogage
-
-    const response = await axios.post(
-      "http://localhost:8000/api/users/register/",
-      payload,
-      {
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        withCredentials: false,
-      }
-    );
-
-    console.log("Réponse du serveur:", response.data); // 🔥 Log de débogage
+    const response = await usersApi.signup(payload);
 
     localStorage.setItem("registrationEmail", signupData.email);
-    
+
     if (signupData.is_seller) {
       localStorage.setItem("is_seller_registration", "true");
-      localStorage.setItem("pending_seller_data", JSON.stringify({
-        first_name: signupData.first_name.trim(),
-        last_name: signupData.last_name.trim(),
-        email: signupData.email.trim().toLowerCase(),
-        phone: signupData.phone.trim(),
-        location: signupData.location.trim(),
-      }));
+      localStorage.setItem(
+        "pending_seller_data",
+        JSON.stringify({
+          first_name: signupData.first_name.trim(),
+          last_name: signupData.last_name.trim(),
+          email: signupData.email.trim().toLowerCase(),
+          phone: signupData.phone.trim(),
+          location: signupData.location.trim(),
+          shop_name: signupData.shop_name.trim(),
+        })
+      );
 
       navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}&type=seller`);
       uiToast({
@@ -525,33 +435,22 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
       navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}`);
       uiToast({
         title: "Succès",
-        description: response.data.message || "Compte créé avec succès",
+        description: response.message || "Compte créé avec succès",
       });
     }
   } catch (error: any) {
-    console.error("Erreur d'inscription:", error.response?.data); // 🔥 Log de débogage
-    
     const errorMessage =
-      error.response?.data?.error ||
-      error.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
       "Une erreur est survenue lors de la création du compte";
-    
-    // Gestion spécifique des erreurs
-    if (error.response?.data?.errors?.email) {
-      uiToast({
-        title: "Email déjà utilisé",
-        description: "Cet email est déjà associé à un compte. Essayez de vous connecter ou utilisez un autre email.",
-        variant: "destructive",
-      });
-    } else {
-      uiToast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-    
-    if (error.response?.data?.errors) {
+
+    uiToast({
+      title: "Erreur",
+      description: errorMessage,
+      variant: "destructive",
+    });
+
+    if (error?.response?.data?.errors) {
       setFieldErrors(error.response.data.errors);
     }
   } finally {
@@ -755,7 +654,7 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
                     {fieldErrors.phone && <p className="text-red-500 text-sm">{fieldErrors.phone}</p>}
                   </div>
                 </div>
-
+                <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="location">Localisation (Ville)</Label>
                   <select
@@ -775,7 +674,21 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
                   </select>
                   {fieldErrors.location && <p className="text-red-500 text-sm">{fieldErrors.location}</p>}
                 </div>
-
+                <div className="space-y-2">
+                    <Label htmlFor="shop_name">Nom de la boutique</Label>
+                    <Input
+                      id="shop_name"
+                      name="shop_name"
+                      placeholder="Nom de la boutique"
+                      value={signupData.shop_name}
+                      onChange={handleSignupChange}
+                      onBlur={handleBlur}
+                      className={fieldErrors.shop_name ? "border-red-500" : ""}
+                      required
+                    />
+                    {fieldErrors.shop_name && <p className="text-red-500 text-sm">{fieldErrors.shop_name}</p>}
+                  </div>
+                    </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Mot de passe</Label>
                   <div className="relative">
@@ -903,22 +816,7 @@ const checkEmailExists = async (email: string): Promise<boolean> => {
                     </div>
                   </div>
 
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        type="checkbox"
-                        id="is_seller"
-                        checked={signupData.is_seller}
-                        onChange={handleSellerChange}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="is_seller" className="text-gray-700">
-                        Je souhaite m'inscrire en tant que vendeur
-                      </label>
-                    </div>
-                  </div>
+                  
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
