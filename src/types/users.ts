@@ -7,6 +7,7 @@ export interface User {
   username: string;
   phone: string;
   country_code: string;
+  shop_name?: string;
   location: string;
   role: 'buyer' | 'seller' | 'admin';
   is_staff: boolean;

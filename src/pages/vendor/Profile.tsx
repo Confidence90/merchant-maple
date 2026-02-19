@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge"; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import VendorKYCForm from "@/components/vendor/VendorKYCForm";
 import { vendorProfileApi, type VendorProfileData, type VendorStatus } from "@/services/vendorProfileApi";
 
 // Valeurs par défaut pour éviter les champs undefined
@@ -43,6 +45,12 @@ const defaultProfileData: VendorProfileData = {
   return_zip: "",
   has_existing_shop: "no",
   vendor_type: "retailer",
+  // ⬇️ AJOUTER LES NOUVEAUX CHAMPS KYC
+  status: "pending",
+  verification_status: "pending",
+  kyc_confidence_score: 0,
+  kyc_submitted_at: "",
+  business_license: "",
 };
 
 export default function Profile() {
@@ -59,9 +67,14 @@ export default function Profile() {
 
   // Charger les données au montage du composant
   useEffect(() => {
+    
     loadVendorData();
   }, []);
-
+// Dans le composant Profile, après useEffect
+console.log("🔍 DEBUG - Vendor Status:", vendorStatus);
+console.log("🔍 DEBUG - Profile Data:", profileData);
+console.log("🔍 DEBUG - requires_kyc:", vendorStatus?.requires_kyc);
+console.log("🔍 DEBUG - verification_status:", profileData?.verification_status);
   const loadVendorData = async () => {
     setLoading(true);
     try {
@@ -298,6 +311,107 @@ const handleSave = async () => {
             </div>
           </div>
         )}
+        {/* KYC obligatoire */}
+        {/* Section KYC - Afficher SI requires_kyc est vrai OU SI verification_status est 'pending' */}
+{/* Section KYC - Logique complète */}
+{(vendorStatus?.requires_kyc || profileData?.verification_status) && (
+  <Card className="shadow-md mt-6">
+    <CardHeader>
+      <CardTitle>📋 Vérification d'identité (KYC)</CardTitle>
+    </CardHeader>
+    <CardContent>
+      {profileData?.verification_status === 'verified' ? (
+        // KYC validé
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <span className="text-green-600">✅</span>
+              <span className="ml-2 font-medium">Votre KYC est validé</span>
+            </div>
+            <p className="text-sm text-green-700 mt-2">
+              Votre compte vendeur est entièrement vérifié et activé.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span>Score de confiance :</span>
+              <span className="font-semibold">{profileData?.kyc_confidence_score || 0}/100</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Statut :</span>
+              <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">
+                ✅ Vérifié
+              </Badge>
+            </div>
+          </div>
+        </div>
+      ) : profileData?.verification_status === 'rejected' ? (
+        // KYC rejeté
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <span className="text-red-600">❌</span>
+              <span className="ml-2 font-medium">Votre KYC a été rejeté</span>
+            </div>
+            <p className="text-sm text-red-700 mt-2">
+              Votre dossier KYC nécessite des corrections. Veuillez contacter le support.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span>Score de confiance :</span>
+              <span className="font-semibold">{profileData?.kyc_confidence_score || 0}/100</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Statut :</span>
+              <Badge variant="destructive">
+                ❌ Rejeté
+              </Badge>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // KYC non validé (pending ou vide) - Afficher le formulaire
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <span className="text-blue-600">📋</span>
+              <span className="ml-2 font-medium">
+                {profileData?.verification_status === 'pending' 
+                  ? 'Votre KYC est en cours de vérification' 
+                  : 'Vérification requise'}
+              </span>
+            </div>
+            <p className="text-sm text-blue-700 mt-2">
+              {profileData?.verification_status === 'pending' 
+                ? 'Nos équipes examinent vos documents. Vous serez notifié par email dès que votre compte sera vérifié.'
+                : 'Pour activer votre compte vendeur, vous devez soumettre vos documents d\'identité.'}
+            </p>
+          </div>
+          
+          {/* Afficher le formulaire seulement si le KYC n'a pas encore été soumis */}
+          {(!profileData?.verification_status || profileData?.verification_status === 'pending') && (
+            <VendorKYCForm
+              accountType={profileData?.account_type}
+              onSuccess={async () => {
+                const status = await vendorProfileApi.checkVendorStatus();
+                setVendorStatus(status);
+                // Recharger le profil
+                loadVendorData();
+                toast({
+                  title: "KYC soumis",
+                  description: "Votre dossier est en cours de vérification.",
+                });
+              }}
+            />
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+)}
       </div>
 
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">

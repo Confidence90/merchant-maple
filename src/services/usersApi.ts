@@ -1,147 +1,186 @@
-// src/services/usersApi.ts - VERSION AVEC TOKEN
-import type { User, UsersResponse, Stats } from '@/types/users';
+// src/services/usersApi.ts
+import axios from "axios";
+import type { User, UsersResponse, Stats } from "@/types/users";
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = "http://localhost:8000/api";
 
-// Fonction pour récupérer le token
-const getAuthToken = (): string | null => {
-  // Essayez d'abord localStorage, puis sessionStorage
-  return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+// --------------------
+// Axios instance
+// --------------------
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+});
+
+// --------------------
+// Token helpers
+// --------------------
+const getAuthToken = (): string | null =>
+  localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+
+const setAuthStorage = (
+  data: { access: string; refresh?: string; user: any },
+  rememberMe: boolean
+) => {
+  const storage = rememberMe ? localStorage : sessionStorage;
+  storage.setItem("access_token", data.access);
+  if (data.refresh) storage.setItem("refresh_token", data.refresh);
+  storage.setItem("user", JSON.stringify(data.user));
 };
 
-// Service API pour les utilisateurs avec authentification
+// Interceptor pour injecter le token
+api.interceptors.request.use((config) => {
+    if (config.url?.includes('/users/login/')) {
+    return config;
+  }
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// --------------------
+// Types
+// --------------------
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface SignupPayload {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  password2: string;
+  country_code: string;
+  phone: string;
+  location: string;
+  is_seller: boolean;
+  shop_name?: string;
+}
+
+// --------------------
+// USERS API
+// --------------------
 export const usersApi = {
+  // ---------- AUTH ----------
+  async login(payload: LoginPayload, rememberMe = false) {
+    const res = await api.post("/users/login/", payload);
+
+    const user = {
+      id: res.data.id,
+      email: res.data.email,
+      full_name: res.data.full_name,
+    };
+
+    setAuthStorage(
+      {
+        access: res.data.access,
+        refresh: res.data.refresh,
+        user,
+      },
+      rememberMe
+    );
+
+    window.dispatchEvent(new Event("authChange"));
+    return user;
+  },
+
+  async signup(payload: SignupPayload) {
+    const res = await api.post("/users/register/vendor/", payload);
+    return res.data;
+  },
+
+  async checkEmailExists(email: string): Promise<boolean> {
+    const res = await api.post("/users/check-email/", {
+      email: email.toLowerCase(),
+    });
+    return res.data.exists;
+  },
+
+  // ---------- GOOGLE ----------
+  async loginWithGoogle(idToken: string, rememberMe = false) {
+    const res = await api.post("/users/google/login/", {
+      id_token: idToken,
+    });
+
+    const user = {
+      id: res.data.id,
+      email: res.data.email,
+      names: res.data.full_name || `${res.data.first_name} ${res.data.last_name}`,
+    };
+
+    setAuthStorage(
+      {
+        access: res.data.access || res.data.token,
+        refresh: res.data.refresh,
+        user,
+      },
+      rememberMe
+    );
+
+    window.dispatchEvent(new Event("authChange"));
+    return user;
+  },
+
+  // ---------- GITHUB ----------
+  getGithubRedirectUrl() {
+    const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    if (!githubClientId) throw new Error("GitHub Client ID manquant");
+    return `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=user:email`;
+  },
+
+  async loginWithGithubCode(code: string, rememberMe = false) {
+    const res = await api.post("/users/github-login/", { code });
+
+    const user = {
+      id: res.data.id,
+      email: res.data.email,
+      names: res.data.full_name,
+    };
+
+    setAuthStorage(
+      {
+        access: res.data.access || res.data.token,
+        refresh: res.data.refresh,
+        user,
+      },
+      rememberMe
+    );
+
+    window.dispatchEvent(new Event("authChange"));
+    return user;
+  },
+
+  // ---------- ADMIN USERS ----------
   async getUsers(params?: {
     role?: string;
     search?: string;
     is_active?: boolean;
   }): Promise<UsersResponse> {
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Utilisateur non authentifié - Veuillez vous reconnecter');
-      }
+    const queryParams = new URLSearchParams();
 
-      const queryParams = new URLSearchParams();
-      
-      if (params?.role) queryParams.append('role', params.role);
-      if (params?.search) queryParams.append('search', params.search);
-      if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
-      
-      const queryString = queryParams.toString();
-      const url = `${API_BASE_URL}/users/admin/users/${queryString ? `?${queryString}` : ''}`;
-      
-      console.log('🔄 Fetching users from:', url);
-      console.log('🔑 Using token:', token.substring(0, 20) + '...');
-      
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`, // 🔥 CORRECTION: Ajout du token
-        },
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Non authentifié - Token invalide ou expiré');
-        }
-        if (response.status === 403) {
-          throw new Error('Accès interdit - Vous n\'avez pas les permissions administrateur');
-        }
-        throw new Error(`Erreur HTTP ${response.status} lors du chargement des utilisateurs`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Users data received:', data);
-      
-      return data;
-    } catch (error) {
-      console.error('❌ Error in getUsers:', error);
-      throw error;
-    }
+    if (params?.role) queryParams.append("role", params.role);
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.is_active !== undefined)
+      queryParams.append("is_active", params.is_active.toString());
+
+    const res = await api.get(`/users/admin/users/?${queryParams.toString()}`);
+    return res.data;
   },
 
   async getUserStats(): Promise<Stats> {
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Utilisateur non authentifié - Veuillez vous reconnecter');
-      }
-
-      const url = `${API_BASE_URL}/users/admin/stats/`;
-      console.log('🔄 Fetching stats from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`, // 🔥 CORRECTION: Ajout du token
-        },
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Non authentifié - Token invalide ou expiré');
-        }
-        if (response.status === 403) {
-          throw new Error('Accès interdit - Vous n\'avez pas les permissions administrateur');
-        }
-        throw new Error(`Erreur HTTP ${response.status} lors du chargement des statistiques`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Stats data received:', data);
-      
-      return data;
-    } catch (error) {
-      console.error('❌ Error in getUserStats:', error);
-      return getDefaultStats();
-    }
+    const res = await api.get("/users/admin/stats/");
+    return res.data;
   },
 
   async updateUser(userId: number, data: Partial<User>): Promise<User> {
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Utilisateur non authentifié - Veuillez vous reconnecter');
-      }
-
-      const url = `${API_BASE_URL}/users/admin/users/${userId}/`;
-      console.log('🔄 Updating user at:', url, data);
-      
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`, // 🔥 CORRECTION: Ajout du token
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status} lors de la mise à jour`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('❌ Error in updateUser:', error);
-      throw error;
-    }
+    const res = await api.patch(`/users/admin/users/${userId}/`, data);
+    return res.data;
   },
 };
-
-function getDefaultStats(): Stats {
-  return {
-    total_users: 0,
-    active_users: 0,
-    sellers_count: 0,
-    new_users_today: 0,
-    role_distribution: {
-      buyer: 0,
-      seller: 0,
-      admin: 0,
-    },
-  };
-}

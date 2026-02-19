@@ -65,7 +65,7 @@ export default function Products() {
   const [productToDelete, setProductToDelete] = useState<VendorProduct | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<VendorProduct | null>(null);
   
-  const { products, loading, error, deleteProduct, updateProduct } = useVendorProducts();
+  const { products, loading, error, deeleteProduct, updateProduct, toggleProductStatus } = useVendorProducts();
   const { toast } = useToast();
   const handleAddProduct = () => {
     navigate("/products/add");
@@ -88,6 +88,7 @@ export default function Products() {
     setSelectedProduct(product);
     setEditDialogOpen(true);
   };
+  
 
   // 🔥 ACTION: Supprimer un produit
   const handleDeleteClick = (product: VendorProduct) => {
@@ -95,7 +96,7 @@ export default function Products() {
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
+  /*const handleConfirmDelete = async () => {
     if (!productToDelete) return;
 
     try {
@@ -114,10 +115,22 @@ export default function Products() {
       setDeleteDialogOpen(false);
       setProductToDelete(null);
     }
-  };
+  };*/
+  const handleConfirmDelete = async () => {
+  if (!productToDelete) return;
+  try {
+    await deeleteProduct(productToDelete.id);
+    toast({ title: '✅ Produit supprimé', description: `"${productToDelete.title}" supprimé avec succès.` });
+  } catch (err) {
+    toast({ title: '❌ Erreur', description: 'Impossible de supprimer le produit.', variant: 'destructive' });
+  } finally {
+    setDeleteDialogOpen(false);
+    setProductToDelete(null);
+  }
+};
 
   // 🔥 ACTION: Changer le statut d'un produit
-  const handleStatusChange = async (productId: number, newStatus: string) => {
+  /*const handleStatusChange = async (productId: number, newStatus: string) => {
     try {
       await updateProduct(productId, { status: newStatus });
       toast({
@@ -131,7 +144,15 @@ export default function Products() {
         variant: "destructive",
       });
     }
-  };
+  };*/
+  const handleStatusChange = async (productId: number, newStatus: 'active' | 'expired') => {
+  try {
+    await toggleProductStatus(productId, newStatus);
+    toast({ title: '✅ Statut mis à jour', description: 'Le statut du produit a été modifié.' });
+  } catch (err) {
+    toast({ title: '❌ Erreur', description: 'Impossible de modifier le statut.', variant: 'destructive' });
+  }
+};
 
   // 🔥 ACTION: Exporter les produits
   const handleExportClick = () => {
@@ -462,42 +483,65 @@ export default function Products() {
       </Dialog>
 
       {/* 🔥 DIALOG: Modifier un produit (version basique) */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Modifier le produit</DialogTitle>
-            <DialogDescription>
-              Modifiez les informations de votre produit
-            </DialogDescription>
-          </DialogHeader>
-          {selectedProduct && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Fonctionnalité de modification en cours de développement...
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setEditDialogOpen(false)}
-                >
-                  Annuler
-                </Button>
-                <Button 
-                  onClick={() => {
-                    toast({
-                      title: "🔄 Modification",
-                      description: "La modification sera bientôt disponible",
-                    });
-                    setEditDialogOpen(false);
-                  }}
-                >
-                  Enregistrer les modifications
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* 🔥 DIALOG: Modifier un produit */}
+<Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle>Modifier le produit</DialogTitle>
+      <DialogDescription>
+        Modifiez les informations de votre produit
+      </DialogDescription>
+    </DialogHeader>
+
+    {selectedProduct && (
+      <form
+        className="space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            await updateProduct(selectedProduct.id, {
+              title: (e.target as any).title.value,
+              description: (e.target as any).description.value,
+              price: parseFloat((e.target as any).price.value),
+              available_quantity: parseInt((e.target as any).available_quantity.value),
+            });
+            toast({ title: "✅ Produit mis à jour", description: `"${selectedProduct.title}" a été modifié.` });
+            setEditDialogOpen(false);
+          } catch (err) {
+            toast({ title: "❌ Erreur", description: "Impossible de modifier le produit.", variant: "destructive" });
+          }
+        }}
+      >
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground">Titre</label>
+          <Input name="title" defaultValue={selectedProduct.title} required />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground">Description</label>
+          <Input name="description" defaultValue={selectedProduct.description} required />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Prix (XOF)</label>
+            <Input name="price" type="number" defaultValue={selectedProduct.price} required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Stock disponible</label>
+            <Input name="available_quantity" type="number" defaultValue={selectedProduct.available_quantity} required />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
+          <Button type="submit">Enregistrer les modifications</Button>
+        </div>
+      </form>
+    )}
+  </DialogContent>
+</Dialog>
+
 
       {/* 🔥 DIALOG: Confirmation de suppression */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
