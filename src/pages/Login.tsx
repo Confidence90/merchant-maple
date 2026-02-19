@@ -485,9 +485,9 @@ const handleSignup = async (e: React.FormEvent) => {
                 </div>
               )}
 
-              <div className="mb-4 p-2 bg-blue-50 text-blue-700 text-sm rounded text-center">
+              {/*<div className="mb-4 p-2 bg-blue-50 text-blue-700 text-sm rounded text-center">
                 Mode : {rememberMe ? "Session persistante" : "Session temporaire"}
-              </div>
+              </div>*/}
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">

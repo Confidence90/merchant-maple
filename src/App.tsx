@@ -23,6 +23,7 @@ import Index from "./pages/Index";
 import VendorSetup from "./pages/VendorSetup";
 import Notifications from "./pages/vendor/Notifications";
 import VerifyEmail from "./components/VerifyEmail";
+import VendorRoute from "./components/auth/VendorRoute";
 
 const queryClient = new QueryClient();
 
@@ -35,22 +36,23 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<VendorLayout><Dashboard /></VendorLayout>} />
-          <Route path="/products" element={<VendorLayout><Products /></VendorLayout>} />
-          <Route path="/orders" element={<VendorLayout><Orders /></VendorLayout>} />
-          <Route path="/messages" element={<VendorLayout><Messages /></VendorLayout>} />
-          <Route path="/wallet" element={<VendorLayout><Wallet /></VendorLayout>} />
-          <Route path="/profile" element={<VendorLayout><Profile /></VendorLayout>} />
-          <Route path="/reviews" element={<VendorLayout><Reviews /></VendorLayout>} />
-          <Route path="/marketing" element={<VendorLayout><Marketing /></VendorLayout>} />
-          <Route path="/products/add" element={<VendorLayout><AddProduct /></VendorLayout>} />
-          <Route path="/statistics" element={<VendorLayout><Statistics /></VendorLayout>} />
-          <Route path="/settings" element={<VendorLayout><Settings /></VendorLayout>} />
-          <Route path="/admin/users" element={<VendorLayout><UsersManagement /></VendorLayout>} />
-          <Route path="/notifications" element={<VendorLayout><Notifications /></VendorLayout>} />
-          <Route path="*" element={<NotFound />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/vendor-setup" element={<VendorSetup />} />
+          <Route path="/dashboard" element={<VendorRoute><VendorLayout><Dashboard /></VendorLayout></VendorRoute>} />
+          <Route path="/products" element={<VendorRoute><VendorLayout><Products /></VendorLayout></VendorRoute>} />
+          <Route path="/orders" element={<VendorRoute><VendorLayout><Orders /></VendorLayout></VendorRoute>} />
+          <Route path="/messages" element={<VendorRoute><VendorLayout><Messages /></VendorLayout></VendorRoute>} />
+          <Route path="/wallet" element={<VendorRoute><VendorLayout><Wallet /></VendorLayout></VendorRoute>} />
+          <Route path="/profile" element={<VendorRoute><VendorLayout><Profile /></VendorLayout></VendorRoute>} />
+          <Route path="/reviews" element={<VendorRoute><VendorLayout><Reviews /></VendorLayout></VendorRoute>} />
+          <Route path="/marketing" element={<VendorRoute><VendorLayout><Marketing /></VendorLayout></VendorRoute>} />
+          <Route path="/products/add" element={<VendorRoute><VendorLayout><AddProduct /></VendorLayout></VendorRoute>} />
+          <Route path="/statistics" element={<VendorRoute><VendorLayout><Statistics /></VendorLayout></VendorRoute>} />
+          <Route path="/settings" element={<VendorRoute><VendorLayout><Settings /></VendorLayout></VendorRoute>} />
+          <Route path="/admin/users" element={<VendorRoute><VendorLayout><UsersManagement /></VendorLayout></VendorRoute>} />
+          <Route path="/notifications" element={<VendorRoute><VendorLayout><Notifications /></VendorLayout></VendorRoute>} />
+          <Route path="*" element={<NotFound />} />
+          
           <Route 
           path="/admin/users" 
           element={
